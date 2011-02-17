@@ -1,0 +1,18 @@
+Javascript API for Min.us http://min.us
+
+Still in alpha and may change
+
+Based on REST API http://github.com/Miners/MinusAPI/blob/master/REST_API.markdown
+
+Usage:
+    Minus.createGallery(function(gallery) {
+        Minus.uploadItemFromURL(url, gallery.editor_id, 
+            function(file) {
+                console.log("File uploaded successfuly");
+            }
+        );
+    });
+
+    Minus.myGalleries(function(galleries) {
+        // Do something with galleries
+    })
