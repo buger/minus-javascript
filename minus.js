@@ -1,4 +1,4 @@
-(function(window) {        
+(function(window, undefined) {        
     var emptyFunc = function(){};
 
     function clone(obj){
@@ -68,10 +68,16 @@
             url += "?" + hashToQueryString(options.params);
         }
         
-        xhr.open(options.method || "GET", url, true);        
+        xhr.open(options.method || "GET", url, true);  
+
         xhr.onreadystatechange = function(){
             if (xhr.readyState == 4) {
-                var response = xhr.responseText[0] === '{' ? JSON.parse(xhr.responseText) : 
+                // Parse response if it contains JSON string
+                var response = xhr.responseText[0] === '{' ? (function(){
+                                                                 return window.JSON && window.JSON.parse ?
+                                                                    window.JSON.parse(xhr.responseText) :
+                                                                    (new Function("return "+xhr.responseText))()
+                                                             }()) :
                                                              xhr.responseText;
 
                 if (xhr.status == 200) {
@@ -81,25 +87,30 @@
                 }
             }
         }
+        
+        // Setting Request headers
+        if (!options.headers) options.headers = {};        
 
+        if (!options.headers["Content-Type"] && options.method === "POST") {
+            options.headers["Content-Type"] = "application/x-www-form-urlencoded";
+        }
 
-        if (options.method === "POST" && (options.params || options.binaryData)) {
-            if (options.headers && options.headers["Content-Type"]) {
-                xhr.setRequestHeader("Content-Type", options.headers["Content-Type"]);
-            } else {
-                xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+        for (key in options.headers) {
+            if (options.headers.hasOwnProperty(key)) {
+                xhr.setRequestHeader(key, options.headers[key]);
             }
-            
+        }
+        
+        if (options.mime_type) xhr.overrideMimeType(options.mime_type);        
+        
+        // Sending data
+        if (options.method === "POST" && (options.params || options.binaryData)) {
             if (options.binaryData) {
                 xhr.sendAsBinary(options.binaryData);
             } else {
                 xhr.send(hashToQueryString(options.params));
             }
         } else {
-            if (options.mime_type) {
-                xhr.overrideMimeType('text/plain; charset=x-user-defined');
-            }
-
             xhr.send(null);
         }
 
@@ -162,7 +173,7 @@
 
     
     Minus.uploadItem = function(editor_id, filename, mime, binaryData, callback) {
-        var params = hashToQueryString({editor_id: editor_id, key: "OK", filename:encodeURIComponent(filename)});
+        var params = hashToQueryString({ editor_id: editor_id, key: "OK", filename:encodeURIComponent(filename) });
 
         var boundary = '---------------------------';
         boundary += Math.floor(Math.random()*32768);
@@ -176,8 +187,6 @@
         data += "\r\n";
         data += "\r\n" + '--' + boundary + '--'
         data += "\r\n";
-
-        console.log(binaryData);
 
         this.callMethod('UploadItem?'+params, {
             method: "POST",
@@ -206,7 +215,7 @@
                 if (size > 10000000) {
                     console.error("File too large");
 
-                    callback({ message: "file_size_error", message: "Maximum allowed file size is 10 mb." });
+                    callback({ error: "file_size_error", message: "Maximum allowed file size is 10 mb." });
                 } else {
                     var data = new Ajax(url, {
                         mime_type: 'text/plain; charset=x-user-defined',
